@@ -1,86 +1,181 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Mew Wallet</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Online X and O</title>
 
-  <style>
-    body {
-      font-family: Arial;
-      text-align: center;
-      background: #111;
-      color: White;
-      padding-top: 100px;
-    }
+<style>
+body{
+    margin:0;
+    background:#0f172a;
+    font-family:Arial;
+    color:white;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+}
 
-    button {
-      padding: 15px 25px;
-      font-size: 18px;
-      border: none;
-      border-radius: 10px;
-      background: gold;
-      cursor: pointer;
-    }
+.container{
+    text-align:center;
+}
 
-    #box {
-      display: none;
-      margin-top: 30px;
-      background: #222;
-      padding: 20px;
-      border-radius: 10px;
-    }
+.board{
+    display:grid;
+    grid-template-columns:repeat(3,100px);
+    gap:10px;
+    margin-top:20px;
+}
 
-    #request {
-      color: orange;
-      cursor: pointer;
-    }
+.cell{
+    width:100px;
+    height:100px;
+    background:#1e293b;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:50px;
+    border-radius:12px;
+    cursor:pointer;
+}
 
-    #footerNote {
-      margin-top: 80px;
-      font-size: 14px;
-      color: lightgray;
-    }
-  </style>
+button{
+    margin-top:20px;
+    padding:10px 20px;
+    border:none;
+    border-radius:10px;
+    background:#2563eb;
+    color:white;
+    cursor:pointer;
+}
+</style>
 </head>
-
 <body>
 
-  <h1>MEW WALLET</h1>
-  <h2>Welcome Aris Groenendijk</h2>
-  <h3>To withdraw your €11,828</h3>
+<div class="container">
+    <h1>Online X and O</h1>
+    <h2 id="status">Loading...</h2>
 
-  <h2>Enter Code</h2>
+    <div class="board">
+        <div class="cell" data-index="0"></div>
+        <div class="cell" data-index="1"></div>
+        <div class="cell" data-index="2"></div>
+        <div class="cell" data-index="3"></div>
+        <div class="cell" data-index="4"></div>
+        <div class="cell" data-index="5"></div>
+        <div class="cell" data-index="6"></div>
+        <div class="cell" data-index="7"></div>
+        <div class="cell" data-index="8"></div>
+    </div>
 
-  <input type="text" id="codeBox" placeholder="Enter code">
-  <br><br>
+    <button onclick="resetGame()">Restart</button>
+</div>
 
-  <button onclick="checkCode()">Submit</button>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getDatabase,
+  ref,
+  set,
+  onValue
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-  <p id="result"></p>
-  <p id="request"></p>
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  databaseURL: "YOUR_DATABASE_URL",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
 
-  <div id="box">
-    <h2>Access Granted ✅</h2>
-    <p>Your balance: €11,828</p>
-  </div>
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-  <!-- Bottom text -->
-  <p id="footerNote">You will be redirected to PayPal.</p>
+const gameRef = ref(db, 'xo-game');
 
-  <script>
-    function checkCode() {
-      let code = document.getElementById("codeBox").value;
+let board = ["", "", "", "", "", "", "", "", ""];
+let currentPlayer = "X";
+let gameOver = false;
 
-      if (code === "7304") {
-        document.getElementById("result").innerText = "Correct code ✅";
-        document.getElementById("request").innerText = "";
-        document.getElementById("box").style.display = "block";
-      } else {
-        document.getElementById("result").innerText = "Wrong code ❌";
-        document.getElementById("request").innerHTML = "<u>Request new code</u>";
-      }
+const cells = document.querySelectorAll('.cell');
+const status = document.getElementById('status');
+
+const wins = [
+    [0,1,2],
+    [3,4,5],
+    [6,7,8],
+    [0,3,6],
+    [1,4,7],
+    [2,5,8],
+    [0,4,8],
+    [2,4,6]
+];
+
+cells.forEach(cell => {
+    cell.addEventListener('click', () => {
+        const index = cell.dataset.index;
+
+        if(board[index] !== '' || gameOver) return;
+
+        board[index] = currentPlayer;
+
+        if(checkWinner()){
+            gameOver = true;
+            status.innerHTML = currentPlayer + ' Wins 🎉';
+        } else {
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            status.innerHTML = currentPlayer + " Turn";
+        }
+
+        updateGame();
+    });
+});
+
+function checkWinner(){
+    return wins.some(pattern => {
+        return pattern.every(index => board[index] === currentPlayer);
+    });
+}
+
+function updateGame(){
+    set(gameRef, {
+        board,
+        currentPlayer,
+        gameOver
+    });
+}
+
+onValue(gameRef, snapshot => {
+    const data = snapshot.val();
+
+    if(!data) return;
+
+    board = data.board;
+    currentPlayer = data.currentPlayer;
+    gameOver = data.gameOver;
+
+    cells.forEach((cell, index) => {
+        cell.innerHTML = board[index];
+    });
+
+    if(!gameOver){
+        status.innerHTML = currentPlayer + " Turn";
     }
-  </script>
+});
+
+window.resetGame = function(){
+    board = ["", "", "", "", "", "", "", "", ""];
+    currentPlayer = "X";
+    gameOver = false;
+
+    updateGame();
+}
+
+updateGame();
+</script>
 
 </body>
 </html>
