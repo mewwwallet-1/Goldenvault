@@ -1,63 +1,82 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Online X and O</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Online X and O Game</title>
 
 <style>
-body{
-    margin:0;
-    background:#0f172a;
-    font-family:Arial;
-    color:white;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    height:100vh;
-}
+    body{
+        font-family: Arial, sans-serif;
+        background:#0f172a;
+        color:white;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        height:100vh;
+        margin:0;
+    }
 
-.container{
-    text-align:center;
-}
+    .container{
+        text-align:center;
+    }
 
-.board{
-    display:grid;
-    grid-template-columns:repeat(3,100px);
-    gap:10px;
-    margin-top:20px;
-}
+    h1{
+        margin-bottom:10px;
+    }
 
-.cell{
-    width:100px;
-    height:100px;
-    background:#1e293b;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    font-size:50px;
-    border-radius:12px;
-    cursor:pointer;
-}
+    #status{
+        margin-bottom:20px;
+        font-size:20px;
+    }
 
-button{
-    margin-top:20px;
-    padding:10px 20px;
-    border:none;
-    border-radius:10px;
-    background:#2563eb;
-    color:white;
-    cursor:pointer;
-}
+    .board{
+        display:grid;
+        grid-template-columns:repeat(3,120px);
+        gap:10px;
+    }
+
+    .cell{
+        width:120px;
+        height:120px;
+        background:#1e293b;
+        border-radius:15px;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        font-size:60px;
+        cursor:pointer;
+        transition:0.2s;
+    }
+
+    .cell:hover{
+        background:#334155;
+    }
+
+    button{
+        margin-top:20px;
+        padding:12px 20px;
+        border:none;
+        border-radius:10px;
+        background:#22c55e;
+        color:white;
+        font-size:16px;
+        cursor:pointer;
+    }
+
+    button:hover{
+        opacity:0.9;
+    }
 </style>
 </head>
 <body>
 
 <div class="container">
     <h1>Online X and O</h1>
-    <h2 id="status">Loading...</h2>
 
-    <div class="board">
+    <div id="status">Player X Turn</div>
+
+    <div class="board" id="board">
         <div class="cell" data-index="0"></div>
         <div class="cell" data-index="1"></div>
         <div class="cell" data-index="2"></div>
@@ -69,41 +88,18 @@ button{
         <div class="cell" data-index="8"></div>
     </div>
 
-    <button onclick="resetGame()">Restart</button>
+    <button onclick="restartGame()">Restart Game</button>
 </div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  getDatabase,
-  ref,
-  set,
-  onValue
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  databaseURL: "YOUR_DATABASE_URL",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-const gameRef = ref(db, 'xo-game');
-
-let board = ["", "", "", "", "", "", "", "", ""];
-let currentPlayer = "X";
-let gameOver = false;
-
+<script>
 const cells = document.querySelectorAll('.cell');
-const status = document.getElementById('status');
+const statusText = document.getElementById('status');
 
-const wins = [
+let currentPlayer = "X";
+let board = ["", "", "", "", "", "", "", "", ""];
+let running = true;
+
+const winConditions = [
     [0,1,2],
     [3,4,5],
     [6,7,8],
@@ -115,66 +111,62 @@ const wins = [
 ];
 
 cells.forEach(cell => {
-    cell.addEventListener('click', () => {
-        const index = cell.dataset.index;
-
-        if(board[index] !== '' || gameOver) return;
-
-        board[index] = currentPlayer;
-
-        if(checkWinner()){
-            gameOver = true;
-            status.innerHTML = currentPlayer + ' Wins 🎉';
-        } else {
-            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-            status.innerHTML = currentPlayer + " Turn";
-        }
-
-        updateGame();
-    });
+    cell.addEventListener('click', cellClicked);
 });
+
+function cellClicked(){
+    const index = this.dataset.index;
+
+    if(board[index] !== "" || !running){
+        return;
+    }
+
+    board[index] = currentPlayer;
+    this.textContent = currentPlayer;
+
+    checkWinner();
+}
 
 function checkWinner(){
-    return wins.some(pattern => {
-        return pattern.every(index => board[index] === currentPlayer);
-    });
-}
+    let won = false;
 
-function updateGame(){
-    set(gameRef, {
-        board,
-        currentPlayer,
-        gameOver
-    });
-}
+    for(let condition of winConditions){
+        const [a,b,c] = condition;
 
-onValue(gameRef, snapshot => {
-    const data = snapshot.val();
-
-    if(!data) return;
-
-    board = data.board;
-    currentPlayer = data.currentPlayer;
-    gameOver = data.gameOver;
-
-    cells.forEach((cell, index) => {
-        cell.innerHTML = board[index];
-    });
-
-    if(!gameOver){
-        status.innerHTML = currentPlayer + " Turn";
+        if(
+            board[a] &&
+            board[a] === board[b] &&
+            board[a] === board[c]
+        ){
+            won = true;
+            break;
+        }
     }
-});
 
-window.resetGame = function(){
-    board = ["", "", "", "", "", "", "", "", ""];
-    currentPlayer = "X";
-    gameOver = false;
-
-    updateGame();
+    if(won){
+        statusText.textContent = `Player ${currentPlayer} Wins!`;
+        running = false;
+    }
+    else if(!board.includes("")){
+        statusText.textContent = "Draw!";
+        running = false;
+    }
+    else{
+        currentPlayer = currentPlayer === "X" ? "O" : "X";
+        statusText.textContent = `Player ${currentPlayer} Turn`;
+    }
 }
 
-updateGame();
+function restartGame(){
+    currentPlayer = "X";
+    board = ["", "", "", "", "", "", "", "", ""];
+    running = true;
+    statusText.textContent = "Player X Turn";
+
+    cells.forEach(cell => {
+        cell.textContent = "";
+    });
+}
 </script>
 
 </body>
