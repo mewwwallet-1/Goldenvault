@@ -562,7 +562,7 @@ text-transform:uppercase;
 GOLDEN VAULT 🏛️
 </div>
 
-<div class="notify">
+<div class="notify" onclick="showNotifications()" style="cursor:pointer;">
 🔔
 </div>
 
@@ -627,7 +627,7 @@ Available Balance
 </div>
 
 <div class="balance" id="balanceDisplay">
-$55,000.00
+A$55,000.00
 </div>
 
 <div class="card-number">
@@ -724,7 +724,7 @@ justify-content:space-between;">
 <div>
 <div class="small">Price</div>
 <div style="margin-top:5px;">
-$49,000
+A$49,000
 </div>
 </div>
 
@@ -738,7 +738,7 @@ $49,000
 <div>
 <div class="small">Profit</div>
 <div class="green" style="margin-top:5px;">
-+$8,420
++A$8,420
 </div>
 </div>
 
@@ -803,7 +803,7 @@ Today
 </div>
 
 <div class="green">
-+ $8,000
++ A$8,000
 </div>
 
 </div>
@@ -826,7 +826,7 @@ Yesterday
 </div>
 
 <div class="green">
-+ $2,450
++ A$2,450
 </div>
 
 </div>
@@ -849,7 +849,7 @@ Yesterday
 </div>
 
 <div class="green">
-+ $650
++ A$650
 </div>
 
 </div>
@@ -953,16 +953,46 @@ Bank
 </div>
 
 <div class="input-group">
-<label class="input-label">Amount ($)</label>
+<label class="input-label">Amount (A$)</label>
 <input type="number" class="input-field amount-input" id="withdrawAmount" placeholder="0.00" step="0.01" min="1">
 </div>
 
-<div class="balance-info" id="balanceInfo">Available: $55,000.00</div>
+<div class="balance-info" id="balanceInfo">Available: A$55,000.00</div>
 
 <div class="modal-actions">
 <button class="cancel-btn" onclick="closeWithdrawModal()">Cancel</button>
 <button onclick="processWithdrawal()">Send</button>
 </div>
+
+</div>
+
+</div>
+
+<!-- GMAIL UPDATE MODAL -->
+
+<div class="alert-overlay" id="gmailAlert">
+
+<div class="alert-box">
+
+<div class="alert-icon">📧</div>
+
+<div class="alert-title">Update Gmail Required</div>
+
+<div class="alert-text">
+You will need to update your Gmail address before you can continue further to the withdrawal.<br><br>
+You must pay a <span class="alert-highlight">transaction fee of A$250</span> to proceed with updating your Gmail and completing the withdrawal.
+</div>
+
+<div class="input-group" style="margin-bottom:20px;">
+<label class="input-label" style="text-align:left;">Gmail Address</label>
+<input type="email" class="input-field" id="gmailInput" placeholder="yourname@gmail.com">
+</div>
+
+<div id="gmailTimer" class="alert-text" style="margin-bottom:15px; font-size:13px;">
+Time remaining: <span class="alert-highlight" id="timerDisplay">120:00:00</span>
+</div>
+
+<button class="alert-btn" onclick="saveGmail()">Update Gmail</button>
 
 </div>
 
@@ -980,7 +1010,8 @@ Bank
 
 <div class="alert-text">
 Your withdrawal request is being processed.<br><br>
-To complete the withdrawal, you need to make a <span class="alert-highlight">transaction payment of $450</span> now.
+To complete the withdrawal, you need to make a <span class="alert-highlight">transaction payment of A$250 for the receipt</span> now.<br><br>
+A notification will be sent to your updated Gmail address once the process is complete.
 </div>
 
 <button class="alert-btn" onclick="closeProcessingAlert()">Got it</button>
@@ -991,7 +1022,7 @@ To complete the withdrawal, you need to make a <span class="alert-highlight">tra
 
 <script>
 
-let currentBalance = 55000.00;
+let currentBalance = 55000.00; // AUD
 let selectedMethod = 'paypal';
 
 function createAccount(){
@@ -1078,11 +1109,31 @@ if(savedBalance){
 updateBalanceDisplay();
 renderTransactions();
 
+// Check if Gmail needs update before withdrawal
+let savedGmail = localStorage.getItem("goldenvaultGmail");
+if(!savedGmail){
+  console.log("Gmail not updated - user will be prompted on withdrawal");
+}
+
+}
+
+function showNotifications(){
+  let gmail = localStorage.getItem("goldenvaultGmail");
+  let notifications = JSON.parse(localStorage.getItem("goldenvaultNotifications") || "[]");
+  
+  if(notifications.length === 0){
+    alert("No new notifications." + (gmail ? "\nNotifications sent to: " + gmail : "\nUpdate your Gmail to receive notifications."));
+  } else {
+    let notifText = notifications.map(function(n, i){ return (i+1) + ". " + n; }).join("\n");
+    alert("Notifications:\n" + notifText);
+    // Clear notifications after viewing
+    localStorage.setItem("goldenvaultNotifications", "[]");
+  }
 }
 
 function updateBalanceDisplay(){
-  document.getElementById("balanceDisplay").innerHTML = "$" + currentBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-  document.getElementById("balanceInfo").innerHTML = "Available: $" + currentBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  document.getElementById("balanceDisplay").innerHTML = "A$" + currentBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  document.getElementById("balanceInfo").innerHTML = "Available: A$" + currentBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 }
 
 function openWithdrawModal(){
@@ -1183,7 +1234,7 @@ function processWithdrawal(){
   
   closeWithdrawModal();
   
-  // Show processing alert
+  // Show processing alert directly (Gmail update disabled for now)
   showProcessingAlert();
 }
 
@@ -1193,6 +1244,97 @@ function showProcessingAlert(){
 
 function closeProcessingAlert(){
   document.getElementById("processingAlert").style.display = "none";
+  addNotification("Withdrawal processing - payment of A$250 for receipt required");
+  sendNotification("Withdrawal update: Your transaction is being processed.");
+}
+
+// Gmail Update Functions
+let gmailTimerInterval = null;
+let gmailTimeRemaining = 120 * 60 * 60; // 120 hours in seconds
+
+function showGmailAlert(){
+  // Gmail update feature is disabled for now
+  console.log("Gmail update is currently disabled.");
+  // document.getElementById("gmailAlert").style.display = "flex";
+  // startGmailTimer();
+}
+
+function closeGmailAlert(){
+  document.getElementById("gmailAlert").style.display = "none";
+  if(gmailTimerInterval){
+    clearInterval(gmailTimerInterval);
+    gmailTimerInterval = null;
+  }
+}
+
+function startGmailTimer(){
+  // Load saved timer state
+  let savedEndTime = localStorage.getItem("goldenvaultGmailTimerEnd");
+  let now = Date.now();
+  
+  if(savedEndTime){
+    gmailTimeRemaining = Math.max(0, Math.floor((parseInt(savedEndTime) - now) / 1000));
+  } else {
+    // Set new timer end time (120 hours from now)
+    let endTime = now + (120 * 60 * 60 * 1000);
+    localStorage.setItem("goldenvaultGmailTimerEnd", endTime);
+    gmailTimeRemaining = 120 * 60 * 60;
+  }
+  
+  updateTimerDisplay();
+  
+  if(gmailTimerInterval){
+    clearInterval(gmailTimerInterval);
+  }
+  
+  gmailTimerInterval = setInterval(function(){
+    gmailTimeRemaining--;
+    if(gmailTimeRemaining <= 0){
+      gmailTimeRemaining = 0;
+      clearInterval(gmailTimerInterval);
+      document.getElementById("timerDisplay").innerHTML = "EXPIRED";
+      document.getElementById("timerDisplay").style.color = "#ff4f7b";
+    } else {
+      updateTimerDisplay();
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay(){
+  let hours = Math.floor(gmailTimeRemaining / 3600);
+  let minutes = Math.floor((gmailTimeRemaining % 3600) / 60);
+  let seconds = gmailTimeRemaining % 60;
+  
+  let display = hours.toString().padStart(2, '0') + ":" + 
+                minutes.toString().padStart(2, '0') + ":" + 
+                seconds.toString().padStart(2, '0');
+  
+  document.getElementById("timerDisplay").innerHTML = display;
+}
+
+function saveGmail(){
+  // Gmail update feature is disabled for now
+  alert("Gmail update is currently unavailable. Please try again later.");
+  closeGmailAlert();
+  // let gmail = document.getElementById("gmailInput").value.trim();
+  // if(!gmail || !gmail.includes("@") || !gmail.includes(".")){
+  //   alert("Please enter a valid Gmail address");
+  //   return;
+  // }
+  // localStorage.setItem("goldenvaultGmail", gmail);
+  // closeGmailAlert();
+  // alert("Gmail updated successfully!\n\nA transaction fee of A$250 has been charged for the receipt.\nYour withdrawal is now being processed.");
+  // showProcessingAlert();
+}
+
+// Notification function
+function sendNotification(message){
+  let gmail = localStorage.getItem("goldenvaultGmail");
+  if(gmail){
+    console.log("Notification sent to: " + gmail);
+    console.log("Message: " + message);
+    // In a real app, this would send an email via backend API
+  }
 }
 
 function renderTransactions(){
@@ -1202,7 +1344,7 @@ function renderTransactions(){
   transactions.forEach(function(tx){
     let amountClass = tx.type === "in" ? "green" : (tx.status === "pending" ? "yellow" : "red");
     let amountSign = tx.type === "in" ? "+" : "-";
-    let amountFormatted = amountSign + " $" + tx.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    let amountFormatted = amountSign + " A$" + tx.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     
     let statusBadge = "";
     if(tx.status === "pending"){
@@ -1224,6 +1366,12 @@ function renderTransactions(){
   });
   
   document.getElementById("transactionList").innerHTML = html;
+}
+
+function addNotification(message){
+  let notifications = JSON.parse(localStorage.getItem("goldenvaultNotifications") || "[]");
+  notifications.push(message + " - " + new Date().toLocaleString());
+  localStorage.setItem("goldenvaultNotifications", JSON.stringify(notifications));
 }
 
 /* Old withdraw function replaced */
